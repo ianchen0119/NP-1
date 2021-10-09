@@ -3,20 +3,15 @@
 #include <iostream>
 #include <string>
 
-#define empty 0
-#define pipe 1
-#define num_pipe 2
-#define redir 3
-
 typedef struct cmdBlock{
     /* prev symbol */
-    int prev;
+    int prev = 0;
     /* start pos */
-    int start;
+    int start = 0;
     /* end pos */
-    int end;
+    int end = 0;
     /* next symbol */
-    int next;
+    int next = 0;
 } cmdBlock;
 
 class sh{
@@ -24,11 +19,15 @@ class sh{
         /* show prompt */
         void prompt();
         /* divide the cmd to cmdBlock(s) */
-        void cmdBlockGen();
+        void cmdBlockGen(char input);
         /* parse the cmdBlock */
         void parser();
         /* exec the command */
         int execCmd();
+        int cmdBlockCount = 1;
+        cmdBlock cmdBlockSet[10];
+        int pipefds[2];
+        int outfd;
     public:
         sh() = default;
         ~sh() = default;
