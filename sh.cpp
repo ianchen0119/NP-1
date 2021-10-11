@@ -24,6 +24,7 @@ void sh::prompt(){
 void sh::cmdBlockGen(string input){
     int count = 0;
     int prevSymbol = empty_;
+    this->cmdBlockSet[this->cmdBlockCount - 1].start = count;
     while(input[count] != '\0'){
         switch(input[count]){
             case '|':
@@ -62,15 +63,18 @@ void sh::cmdBlockGen(string input){
         }
         count++;
     }
+    this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
+    this->cmdBlockSet[this->cmdBlockCount - 1].next = empty_;
+    this->cmdBlockSet[this->cmdBlockCount - 1].end = count;
 }
 
 void sh::parser(string input, int start, int end){
-    string temp = "";
-    for(int i = start; i <= end; i++){
+    string temp;
+    for(int i = start; i < end; i++){
         if(input[i]==' '){
-            if(temp != ""){
+            if(!temp.empty()){
                 this->parse.push_back(temp);
-		        temp = "";
+                temp.clear();
             }
             continue;
 	    }
@@ -94,7 +98,8 @@ int sh::execCmd(string input){
         this->parse.clear();
 
         /* prepare to fork */
-        if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+        if(this->cmdBlockSet[i].next == pipe_){
+            close(this->pipefds[0]);
             pipe(this->pipefds);
             this->outfd = this->pipefds[0];
         }
@@ -104,10 +109,10 @@ int sh::execCmd(string input){
 
         if(pid){
             /* pipe */
-            if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+            if(this->cmdBlockSet[i].next == pipe_){
                 close(this->pipefds[1]);
             }
-            if(this->cmdBlockSet[this->cmdBlockCount].prev == pipe_){
+            if(this->cmdBlockSet[i].prev == pipe_){
                 close(this->outfd);
             } 
             /* file redict */
@@ -115,12 +120,13 @@ int sh::execCmd(string input){
             /* wait for child */
             wait(0); 
         }else{
-            /* next symbol is pipe */
-            if(this->cmdBlockSet[this->cmdBlockCount].prev == pipe_){
+            /* previous symbol is pipe */
+            if(this->cmdBlockSet[i].prev == pipe_){
                 dup2(this->outfd, 0);
                 close(this->outfd);
             }
-            if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+            /* next symbol is pipe */
+            if(this->cmdBlockSet[i].next == pipe_){
                 dup2(this->pipefds[1] ,1);
                 close(this->pipefds[1]);
                 close(this->pipefds[0]);
@@ -150,7 +156,12 @@ void sh::run(){
         }
 
         this->cmdBlockGen(input);
-        cout << this->cmdBlockSet[0].next << endl;
+
+        // cout << "next: " << this->cmdBlockSet[0].next << endl;
+        // cout << "prev: " << this->cmdBlockSet[0].prev << endl;
+        // cout << "start: " << this->cmdBlockSet[0].start << endl;
+        // cout << "end: " << this->cmdBlockSet[0].end << endl;
+
         this->execCmd(input);
     }
 }
