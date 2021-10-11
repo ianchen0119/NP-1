@@ -2,31 +2,34 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <cstring>
+#include <vector>
+#include <algorithm>
 
 using namespace std;
 
-#define empty 0
-#define pipe 1
-#define num_pipe 2
-#define redirOut 3
-#define redirIn 4
+#define empty_ 0
+#define pipe_ 1
+#define num_pipe_ 2
+#define redirOut_ 3
+#define redirIn_ 4
 
 
 void sh::prompt(){
     /* Data reset */
     this->cmdBlockCount = 1;
-    cout << "# " << endl;
+    cout << "# ";
 }
 
-void sh::cmdBlockGen(char input){
+void sh::cmdBlockGen(string input){
     int count = 0;
-    int prevSymbol = empty;
-    while(*(input + count) != '\0'){
-        switch(*(input + count)){
+    int prevSymbol = empty_;
+    while(input[count] != '\0'){
+        switch(input[count]){
             case '|':
                 // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                prevSymbol = pipe;
+                prevSymbol = pipe_;
                 this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                 this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                 this->cmdBlockCount++;
@@ -36,7 +39,7 @@ void sh::cmdBlockGen(char input){
             case '>':
                 // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                prevSymbol = redirOut;
+                prevSymbol = redirOut_;
                 this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                 this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                 this->cmdBlockCount++;
@@ -46,7 +49,7 @@ void sh::cmdBlockGen(char input){
             case '<':
                  // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                prevSymbol = redirIn;
+                prevSymbol = redirIn_;
                 this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                 this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                 this->cmdBlockCount++;
@@ -61,17 +64,81 @@ void sh::cmdBlockGen(char input){
     }
 }
 
-void sh::parser(){
-    
+void sh::parser(string input, int start, int end){
+    string temp = "";
+    for(int i = start; i <= end; i++){
+        if(input[i]==' '){
+            if(temp != ""){
+                this->parse.push_back(temp);
+		        temp = "";
+            }
+            continue;
+	    }
+        temp.push_back(input[i]);
+    }
+    this->parse.push_back(temp);	
 }
 
-int sh::execCmd(){
-    
+int sh::execCmd(string input){
+    int i = 0;
+    for(; i < this->cmdBlockCount; i++){
+        this->parser(input, this->cmdBlockSet[i].start, this->cmdBlockSet[i].end);
+
+        int j = 0;
+        for(auto val: this->parse){
+            this->execArg[j++] = strdup(val.c_str());
+        }
+
+        this->execArg[j] = NULL;
+
+        this->parse.clear();
+
+        /* prepare to fork */
+        if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+            pipe(this->pipefds);
+            this->outfd = this->pipefds[0];
+        }
+
+        /* wait for child */
+        int pid = fork();
+
+        if(pid){
+            /* pipe */
+            if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+                close(this->pipefds[1]);
+            }
+            if(this->cmdBlockSet[this->cmdBlockCount].prev == pipe_){
+                close(this->outfd);
+            } 
+            /* file redict */
+
+            /* wait for child */
+            wait(0); 
+        }else{
+            /* next symbol is pipe */
+            if(this->cmdBlockSet[this->cmdBlockCount].prev == pipe_){
+                dup2(this->outfd, 0);
+                close(this->outfd);
+            }
+            if(this->cmdBlockSet[this->cmdBlockCount].next == pipe_){
+                dup2(this->pipefds[1] ,1);
+                close(this->pipefds[1]);
+                close(this->pipefds[0]);
+            }
+            /* next symbol is redict */
+            if(execvp(this->execArg[0], this->execArg)){
+                    cerr << "unknown cmd: " << this->execArg[0] << endl;
+                    exit(0);
+            }
+        }
+
+    }
+    return 0;
 }
 
 void sh::run(){
 
-    char input[30];
+    string input;
 
     while(true){
         this->prompt();
@@ -83,7 +150,7 @@ void sh::run(){
         }
 
         this->cmdBlockGen(input);
-
-        this->execCmd();
+        cout << this->cmdBlockSet[0].next << endl;
+        this->execCmd(input);
     }
 }

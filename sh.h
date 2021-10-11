@@ -2,6 +2,8 @@
 #define SH_H
 #include <iostream>
 #include <string>
+#include <vector>
+using namespace std;
 
 typedef struct cmdBlock{
     /* prev symbol */
@@ -16,23 +18,25 @@ typedef struct cmdBlock{
 
 class sh{
     private:
-        /* show prompt */
-        void prompt();
-        /* divide the cmd to cmdBlock(s) */
-        void cmdBlockGen(char input);
-        /* parse the cmdBlock */
-        void parser();
-        /* exec the command */
-        int execCmd();
         int cmdBlockCount = 1;
+        vector<string> parse;
+        char* execArg[50] = {NULL};
         cmdBlock cmdBlockSet[10];
         int pipefds[2];
         int outfd;
+        /* show prompt */
+        void prompt();
+        /* divide the cmd to cmdBlock(s) */
+        void cmdBlockGen(string input);
+        /* parse the cmdBlock */
+        void parser(string input, int start, int end);
+        /* exec the command */
+        int execCmd(string input);
     public:
         sh() = default;
         ~sh() = default;
         void run();
-}
+};
 
 
 #endif
