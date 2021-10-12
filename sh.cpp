@@ -14,6 +14,7 @@ using namespace std;
 #define redirOut_ 3
 #define redirIn_ 4
 
+// ref: https://burweisnote.blogspot.com/2017/10/pipe.html
 
 void sh::prompt(){
     /* Data reset */
@@ -99,9 +100,16 @@ int sh::execCmd(string input){
 
         /* prepare to fork */
         if(this->cmdBlockSet[i].next == pipe_){
-            close(this->pipefds[0]);
-            pipe(this->pipefds);
-            this->outfd = this->pipefds[0];
+            if(pipe(this->pipefds) != 0){
+                cout << "err!" << endl;
+                for(;;){
+
+                }
+            }
+            this->outfd = dup(this->pipefds[0]);
+            cout << "read: " << this->pipefds[0] << endl;
+            cout << "write: " << this->pipefds[1] << endl;
+            cout << "pipe: " << this->outfd << endl;
         }
 
         /* wait for child */
@@ -110,28 +118,34 @@ int sh::execCmd(string input){
         if(pid){
             /* pipe */
             if(this->cmdBlockSet[i].next == pipe_){
+                close(this->pipefds[0]);
                 close(this->pipefds[1]);
             }
-            if(this->cmdBlockSet[i].prev == pipe_){
-                close(this->outfd);
-            } 
             /* file redict */
 
             /* wait for child */
             wait(0); 
+
+            if(this->cmdBlockSet[i].prev == pipe_){
+                close(this->outfd);
+            }
         }else{
             /* previous symbol is pipe */
             if(this->cmdBlockSet[i].prev == pipe_){
-                dup2(this->outfd, 0);
-                close(this->outfd);
+                dup2(this->outfd, STDIN_FILENO);
             }
             /* next symbol is pipe */
             if(this->cmdBlockSet[i].next == pipe_){
-                dup2(this->pipefds[1] ,1);
+                dup2(this->pipefds[1] ,STDOUT_FILENO);
+            }
+            if(this->cmdBlockSet[i].next == pipe_ || this->cmdBlockSet[i].prev == pipe_){
                 close(this->pipefds[1]);
                 close(this->pipefds[0]);
+                close(this->outfd);
             }
             /* next symbol is redict */
+
+            /* exec */
             if(execvp(this->execArg[0], this->execArg)){
                     cerr << "unknown cmd: " << this->execArg[0] << endl;
                     exit(0);
@@ -156,11 +170,6 @@ void sh::run(){
         }
 
         this->cmdBlockGen(input);
-
-        // cout << "next: " << this->cmdBlockSet[0].next << endl;
-        // cout << "prev: " << this->cmdBlockSet[0].prev << endl;
-        // cout << "start: " << this->cmdBlockSet[0].start << endl;
-        // cout << "end: " << this->cmdBlockSet[0].end << endl;
 
         this->execCmd(input);
     }

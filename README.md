@@ -2,7 +2,8 @@
 
 A tiny UNIX shell, implemented in C++.
 
-- [ ] execute cmd
-- [ ] pipe
+- [x] execute cmd
+- [x] pipe
+- [ ] multi-pipe
 - [ ] numbered pipe
 - [ ] file redir
