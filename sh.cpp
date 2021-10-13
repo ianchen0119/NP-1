@@ -86,7 +86,18 @@ void sh::parser(string input, int start, int end){
 
 int sh::execCmd(string input){
     int i = 0;
+    int p = 0;
+    char buf;
+    if(pipe(this->pipefds[0]) != 0 || pipe(this->pipefds[1]) != 0){
+        cout << "err!" << endl;
+            for(;;){
+
+            }
+    }
     for(; i < this->cmdBlockCount; i++){
+
+        // cout << "Block" << 0 << ".prev: "  << cmdBlockSet[i].prev << endl;
+        // cout << "Block" << 0 << ".next: "  << cmdBlockSet[i].next << endl;
         this->parser(input, this->cmdBlockSet[i].start, this->cmdBlockSet[i].end);
 
         int j = 0;
@@ -98,56 +109,68 @@ int sh::execCmd(string input){
 
         this->parse.clear();
 
-        /* prepare to fork */
-        if(this->cmdBlockSet[i].next == pipe_){
-            if(pipe(this->pipefds) != 0){
-                cout << "err!" << endl;
-                for(;;){
-
-                }
-            }
-            this->outfd = dup(this->pipefds[0]);
-            cout << "read: " << this->pipefds[0] << endl;
-            cout << "write: " << this->pipefds[1] << endl;
-            cout << "pipe: " << this->outfd << endl;
-        }
 
         /* wait for child */
         int pid = fork();
 
         if(pid){
             /* pipe */
+            if(this->cmdBlockSet[i].prev == pipe_){
+                close(this->pipefds[!p][1]);
+            }
+
             if(this->cmdBlockSet[i].next == pipe_){
-                close(this->pipefds[0]);
-                close(this->pipefds[1]);
+                p = !p;
             }
             /* file redict */
 
             /* wait for child */
+            cout << "[init] child: " << pid << endl;
             wait(0); 
+            cout << "[finished] child: " << pid << endl;
 
             if(this->cmdBlockSet[i].prev == pipe_){
-                close(this->outfd);
+                if(pipe(this->pipefds[p]) != 0){
+                    cout << "err!" << endl;
+                        for(;;){
+
+                        }
+                }
             }
+
         }else{
+            if(this->cmdBlockSet[i].next == pipe_ && this->cmdBlockSet[i].prev == pipe_){
+                close(this->pipefds[!p][1]);
+                dup2(this->pipefds[!p][0], STDIN_FILENO);
+                close(this->pipefds[!p][0]);
+                close(this->pipefds[p][0]);
+                dup2(this->pipefds[p][1] ,STDOUT_FILENO);
+                close(this->pipefds[p][1]);
+            }
+
             /* previous symbol is pipe */
-            if(this->cmdBlockSet[i].prev == pipe_){
-                dup2(this->outfd, STDIN_FILENO);
+            if(this->cmdBlockSet[i].prev == pipe_ && this->cmdBlockSet[i].next != pipe_){
+                close(this->pipefds[p][0]);
+                close(this->pipefds[p][1]);
+                close(this->pipefds[!p][1]);
+                dup2(this->pipefds[!p][0], STDIN_FILENO);
+                close(this->pipefds[!p][0]);
             }
             /* next symbol is pipe */
-            if(this->cmdBlockSet[i].next == pipe_){
-                dup2(this->pipefds[1] ,STDOUT_FILENO);
+            if(this->cmdBlockSet[i].next == pipe_ && this->cmdBlockSet[i].prev != pipe_){
+                close(this->pipefds[!p][0]);
+                close(this->pipefds[!p][1]);
+                close(this->pipefds[p][0]);
+                dup2(this->pipefds[p][1] ,STDOUT_FILENO);
+                close(this->pipefds[p][1]);
             }
-            if(this->cmdBlockSet[i].next == pipe_ || this->cmdBlockSet[i].prev == pipe_){
-                close(this->pipefds[1]);
-                close(this->pipefds[0]);
-                close(this->outfd);
-            }
+
+
             /* next symbol is redict */
 
             /* exec */
             if(execvp(this->execArg[0], this->execArg)){
-                    cerr << "unknown cmd: " << this->execArg[0] << endl;
+                    cerr << "Unknown command: [" << this->execArg[0] << "]" << endl;
                     exit(0);
             }
         }

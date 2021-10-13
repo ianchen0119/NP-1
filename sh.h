@@ -22,7 +22,7 @@ class sh{
         vector<string> parse;
         char* execArg[50] = {NULL};
         cmdBlock cmdBlockSet[10];
-        int pipefds[2];
+        int pipefds[2][2];
         int outfd;
         /* show prompt */
         void prompt();
