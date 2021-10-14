@@ -218,6 +218,10 @@ void sh::run(){
 
         this -> parser(input, 0, input.length());
         
+        if(this->parse[0] == "exit"){
+            exit(0);
+        }
+        
         if(this->parse[0] == "setenv"){
             setenv(this->parse[1].c_str(), this->parse[2].c_str(), 1);
             this->parse.clear();
