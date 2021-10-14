@@ -1,6 +1,7 @@
 #include "sh.h"
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
 #include <vector>
@@ -19,7 +20,7 @@ using namespace std;
 void sh::prompt(){
     /* Data reset */
     this->cmdBlockCount = 1;
-    cout << "# ";
+    cout << "% ";
 }
 
 void sh::cmdBlockGen(string input){
@@ -42,16 +43,6 @@ void sh::cmdBlockGen(string input){
                 // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
                 prevSymbol = redirOut_;
-                this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
-                this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
-                this->cmdBlockCount++;
-                // next cmdBlock
-                this->cmdBlockSet[this->cmdBlockCount - 1].start = count + 1;
-                break;
-            case '<':
-                 // ...
-                this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                prevSymbol = redirIn_;
                 this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                 this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                 this->cmdBlockCount++;
@@ -95,9 +86,10 @@ int sh::execCmd(string input){
             }
     }
     for(; i < this->cmdBlockCount; i++){
-
-        // cout << "Block" << 0 << ".prev: "  << cmdBlockSet[i].prev << endl;
-        // cout << "Block" << 0 << ".next: "  << cmdBlockSet[i].next << endl;
+#ifdef DEBUG
+        cout << "Block" << 0 << ".prev: "  << cmdBlockSet[i].prev << endl;
+        cout << "Block" << 0 << ".next: "  << cmdBlockSet[i].next << endl;
+#endif
         this->parser(input, this->cmdBlockSet[i].start, this->cmdBlockSet[i].end);
 
         int j = 0;
@@ -123,11 +115,14 @@ int sh::execCmd(string input){
                 p = !p;
             }
             /* file redict */
-
+#ifdef DEBUG
             /* wait for child */
             cout << "[init] child: " << pid << endl;
             wait(0); 
             cout << "[finished] child: " << pid << endl;
+#endif
+
+            wait(0); 
 
             if(this->cmdBlockSet[i].prev == pipe_){
                 if(pipe(this->pipefds[p]) != 0){
@@ -167,6 +162,20 @@ int sh::execCmd(string input){
 
 
             /* next symbol is redict */
+            if(this->cmdBlockSet[i].next == redirOut_){
+                close(STDOUT_FILENO);
+                this->parser(input, this->cmdBlockSet[i+1].start, this->cmdBlockSet[i+1].end);
+                // i++;
+                char* filePath = (char*)calloc(0, sizeof(char));
+                int j = 0;
+                filePath = strdup(this->parse[0].c_str());
+                this->parse.clear();
+                creat(filePath, 438);
+            }
+
+            if(this->cmdBlockSet[i].prev == redirOut_){
+                exit(0);
+            }
 
             /* exec */
             if(execvp(this->execArg[0], this->execArg)){

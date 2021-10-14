@@ -6,4 +6,4 @@ A tiny UNIX shell, implemented in C++.
 - [x] pipe
 - [x] multi-pipe
 - [ ] numbered pipe
-- [ ] file redir
+- [x] file redirection
