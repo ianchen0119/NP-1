@@ -7,3 +7,4 @@ A tiny UNIX shell, implemented in C++.
 - [x] multi-pipe
 - [ ] numbered pipe
 - [x] file redirection
+- [x] setenv, printenv

@@ -29,18 +29,26 @@ void sh::cmdBlockGen(string input){
     this->cmdBlockSet[this->cmdBlockCount - 1].start = count;
     while(input[count] != '\0'){
         switch(input[count]){
+            case '!':
             case '|':
-                // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                prevSymbol = pipe_;
-                this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
-                this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
+                if(48 <= (int)input[count+1] && (int)input[count+1] <= 57){
+                    /* TODO */
+                    prevSymbol = num_pipe_;
+                    this->timer = (int)input[count];
+                    this->cmdBlockSet[this->cmdBlockCount].start = count + 2;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
+                    count++;
+                }else{
+                    prevSymbol = pipe_;
+                    this->cmdBlockSet[this->cmdBlockCount].start = count + 1;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
+                }
                 this->cmdBlockCount++;
-                // next cmdBlock
-                this->cmdBlockSet[this->cmdBlockCount - 1].start = count + 1;
                 break;
             case '>':
-                // ...
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
                 prevSymbol = redirOut_;
                 this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
@@ -50,7 +58,6 @@ void sh::cmdBlockGen(string input){
                 this->cmdBlockSet[this->cmdBlockCount - 1].start = count + 1;
                 break;
             default:
-                // ...
                 break;
         }
         count++;
@@ -101,6 +108,14 @@ int sh::execCmd(string input){
 
         this->parse.clear();
 
+        if(this->cmdBlockSet[i].next == num_pipe_){
+            if(pipe(this->pipefds[2]) != 0){
+                    cout << "err!" << endl;
+                        for(;;){
+
+                        }
+                }
+        }
 
         /* wait for child */
         int pid = fork();
@@ -140,6 +155,7 @@ int sh::execCmd(string input){
                 close(this->pipefds[!p][0]);
                 close(this->pipefds[p][0]);
                 dup2(this->pipefds[p][1] ,STDOUT_FILENO);
+                dup2(this->pipefds[p][1] ,STDERR_FILENO);
                 close(this->pipefds[p][1]);
             }
 
@@ -157,6 +173,7 @@ int sh::execCmd(string input){
                 close(this->pipefds[!p][1]);
                 close(this->pipefds[p][0]);
                 dup2(this->pipefds[p][1] ,STDOUT_FILENO);
+                dup2(this->pipefds[p][1] ,STDERR_FILENO);
                 close(this->pipefds[p][1]);
             }
 
@@ -179,7 +196,7 @@ int sh::execCmd(string input){
 
             /* exec */
             if(execvp(this->execArg[0], this->execArg)){
-                    cerr << "Unknown command: [" << this->execArg[0] << "]" << endl;
+                    cerr << "Unknown command: [" << this->execArg[0] << "]." << endl;
                     exit(0);
             }
         }
@@ -192,10 +209,27 @@ void sh::run(){
 
     string input;
 
+    setenv("PATH", "bin:.", 1);
+
     while(true){
         this->prompt();
 
         getline(cin, input);
+
+        this -> parser(input, 0, input.length());
+        
+        if(this->parse[0] == "setenv"){
+            setenv(this->parse[1].c_str(), this->parse[2].c_str(), 1);
+            this->parse.clear();
+            continue;
+        }else if(this->parse[0] == "printenv"){
+            if (getenv(this->parse[1].c_str()) != NULL)
+                cout << getenv(this->parse[1].c_str()) << endl;
+            this->parse.clear();
+            continue;
+        }
+        
+        this->parse.clear();
 
         if(input.length() == 0){
             continue;

@@ -18,19 +18,23 @@ typedef struct cmdBlock{
 
 class sh{
     private:
+        /* Block counter */
         int cmdBlockCount = 1;
+        /* Store the result of parsed cmdBlock */
         vector<string> parse;
         char* execArg[50] = {NULL};
-        cmdBlock cmdBlockSet[10];
-        int pipefds[2][2];
-        int outfd;
-        /* show prompt */
+        /* Can handle 1000 sub-commands at once */
+        cmdBlock cmdBlockSet[1000];
+        int pipefds[3][2];
+        /* For numbered pipe */
+        int timer = 0;
+        /* Show prompt */
         void prompt();
-        /* divide the cmd to cmdBlock(s) */
+        /* Divide the cmd to cmdBlock(s) */
         void cmdBlockGen(string input);
-        /* parse the cmdBlock */
+        /* Parse the cmdBlock */
         void parser(string input, int start, int end);
-        /* exec the command */
+        /* Exec the command */
         int execCmd(string input);
     public:
         sh() = default;
