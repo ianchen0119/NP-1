@@ -7,13 +7,13 @@ using namespace std;
 
 typedef struct cmdBlock{
     /* prev symbol */
-    int prev = 0;
+    int8_t prev = 0;
+    /* next symbol */
+    int8_t next = 0;
     /* start pos */
     int start = 0;
     /* end pos */
     int end = 0;
-    /* next symbol */
-    int next = 0;
 } cmdBlock;
 
 class sh{
@@ -24,8 +24,8 @@ class sh{
         vector<string> parse;
         char* execArg[50] = {NULL};
         /* Can handle 1000 sub-commands at once */
-        cmdBlock cmdBlockSet[1000];
-        int pipefds[3][2];
+        cmdBlock cmdBlockSet[1200];
+        int pipefds[2][2];
         /* For numbered pipe */
         int timer = 0;
         /* Show prompt */

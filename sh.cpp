@@ -85,12 +85,8 @@ void sh::parser(string input, int start, int end){
 int sh::execCmd(string input){
     int i = 0;
     int p = 0;
-    char buf;
-    if(pipe(this->pipefds[0]) != 0 || pipe(this->pipefds[1]) != 0){
-        cout << "err!" << endl;
-            for(;;){
-
-            }
+    if(pipe(this->pipefds[0]) < 0 || pipe(this->pipefds[1]) < 0){
+        cerr << "err! [0]" << endl;
     }
     for(; i < this->cmdBlockCount; i++){
 #ifdef DEBUG
@@ -108,14 +104,11 @@ int sh::execCmd(string input){
 
         this->parse.clear();
 
-        if(this->cmdBlockSet[i].next == num_pipe_){
-            if(pipe(this->pipefds[2]) != 0){
-                    cout << "err!" << endl;
-                        for(;;){
-
-                        }
-                }
-        }
+        // if(this->cmdBlockSet[i].next == num_pipe_){
+        //     if(pipe(this->pipefds[2]) < 0){
+        //             cerr << "err! [1]" << endl;
+        //         }
+        // }
 
         /* wait for child */
         int pid = fork();
@@ -124,6 +117,7 @@ int sh::execCmd(string input){
             /* pipe */
             if(this->cmdBlockSet[i].prev == pipe_){
                 close(this->pipefds[!p][1]);
+                close(this->pipefds[!p][0]);
             }
 
             if(this->cmdBlockSet[i].next == pipe_){
@@ -140,11 +134,8 @@ int sh::execCmd(string input){
             wait(0); 
 
             if(this->cmdBlockSet[i].prev == pipe_){
-                if(pipe(this->pipefds[p]) != 0){
-                    cout << "err!" << endl;
-                        for(;;){
-
-                        }
+                if(pipe(this->pipefds[p]) < 0){
+                    cerr << "err! [2]" << endl;
                 }
             }
 
@@ -184,7 +175,6 @@ int sh::execCmd(string input){
                 this->parser(input, this->cmdBlockSet[i+1].start, this->cmdBlockSet[i+1].end);
                 // i++;
                 char* filePath = (char*)calloc(0, sizeof(char));
-                int j = 0;
                 filePath = strdup(this->parse[0].c_str());
                 this->parse.clear();
                 creat(filePath, 438);
@@ -214,9 +204,9 @@ void sh::run(){
     while(true){
         this->prompt();
 
-        getline(cin, input);
+        getline(cin, input, '\n');
 
-        this -> parser(input, 0, input.length());
+        this->parser(input, 0, input.length());
         
         if(this->parse[0] == "exit"){
             exit(0);
@@ -240,7 +230,7 @@ void sh::run(){
         }
 
         this->cmdBlockGen(input);
-
+        // cout << this->cmdBlockCount << endl;
         this->execCmd(input);
     }
 }
