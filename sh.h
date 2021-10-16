@@ -24,10 +24,10 @@ class sh{
         vector<string> parse;
         char* execArg[50] = {NULL};
         /* Can handle 1000 sub-commands at once */
-        cmdBlock cmdBlockSet[1200];
-        int pipefds[2][2];
+        cmdBlock cmdBlockSet[2000];
+        int pipefds[2000][2];
         /* For numbered pipe */
-        int timer = 0;
+        int timer = -1;
         /* Show prompt */
         void prompt();
         /* Divide the cmd to cmdBlock(s) */

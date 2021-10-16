@@ -32,21 +32,28 @@ void sh::cmdBlockGen(string input){
             case '!':
             case '|':
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                if(48 <= (int)input[count+1] && (int)input[count+1] <= 57){
+                if(48 <= (int)input[count + 1] && (int)input[count + 1] <= 57){
                     /* TODO */
                     prevSymbol = num_pipe_;
-                    this->timer = (int)input[count];
-                    this->cmdBlockSet[this->cmdBlockCount].start = count + 2;
+                    int n = 1;
+                    string countNum;
+                    while(48 <= (int)input[count + n] && (int)input[count + n] <= 57){
+                        countNum[n - 1] = input[count + n];
+                        n++;
+                    }
+                    // countNum[n] = '\0';
+                    this->timer = stoi(countNum);
+                    this->cmdBlockSet[this->cmdBlockCount].start = count + n;
                     this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                     this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
-                    count++;
+                    count ++;
                 }else{
                     prevSymbol = pipe_;
                     this->cmdBlockSet[this->cmdBlockCount].start = count + 1;
                     this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                     this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
+                    this->cmdBlockCount++;
                 }
-                this->cmdBlockCount++;
                 break;
             case '>':
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
@@ -64,7 +71,9 @@ void sh::cmdBlockGen(string input){
     }
     this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
     this->cmdBlockSet[this->cmdBlockCount - 1].next = empty_;
-    this->cmdBlockSet[this->cmdBlockCount - 1].end = count;
+    if(!this->cmdBlockSet[this->cmdBlockCount - 1].end){
+        this->cmdBlockSet[this->cmdBlockCount - 1].end = count;
+    }
 }
 
 void sh::parser(string input, int start, int end){
@@ -90,8 +99,11 @@ int sh::execCmd(string input){
     }
     for(; i < this->cmdBlockCount; i++){
 #ifdef DEBUG
-        cout << "Block" << 0 << ".prev: "  << cmdBlockSet[i].prev << endl;
-        cout << "Block" << 0 << ".next: "  << cmdBlockSet[i].next << endl;
+        cout << "Block" << i << ".prev: "  << cmdBlockSet[i].prev << endl;
+        cout << "Block" << i << ".next: "  << cmdBlockSet[i].next << endl;
+        cout << "Block" << i << ".start: "  << cmdBlockSet[i].start << endl;
+        cout << "Block" << i << ".end: "  << cmdBlockSet[i].end << endl;
+        cout << "Block" << i << ".timer: "  << this->timer << endl;
 #endif
         this->parser(input, this->cmdBlockSet[i].start, this->cmdBlockSet[i].end);
 
@@ -103,12 +115,6 @@ int sh::execCmd(string input){
         this->execArg[j] = NULL;
 
         this->parse.clear();
-
-        // if(this->cmdBlockSet[i].next == num_pipe_){
-        //     if(pipe(this->pipefds[2]) < 0){
-        //             cerr << "err! [1]" << endl;
-        //         }
-        // }
 
         /* wait for child */
         int pid = fork();
@@ -123,6 +129,15 @@ int sh::execCmd(string input){
             if(this->cmdBlockSet[i].next == pipe_){
                 p = !p;
             }
+
+            /* numbered pipe */
+            if(this->timer == 0){
+                // close(this->pipefds[x][1]);
+                // close(this->pipefds[x][0]);
+            }else{
+                this->timer = (this->timer == -1)?(-1):(this->timer - 1);
+            }
+
             /* file redict */
 #ifdef DEBUG
             /* wait for child */
@@ -130,13 +145,20 @@ int sh::execCmd(string input){
             wait(0); 
             cout << "[finished] child: " << pid << endl;
 #endif
-
+#ifndef DEBUG
             wait(0); 
-
+#endif
             if(this->cmdBlockSet[i].prev == pipe_){
                 if(pipe(this->pipefds[p]) < 0){
                     cerr << "err! [2]" << endl;
                 }
+            }
+
+            if(this->timer == 0){
+                // if(pipe(this->pipefds[x]) < 0){
+                //     cerr << "err! [2]" << endl;
+                // }
+                this->timer--;
             }
 
         }else{
@@ -230,7 +252,6 @@ void sh::run(){
         }
 
         this->cmdBlockGen(input);
-        // cout << this->cmdBlockCount << endl;
         this->execCmd(input);
     }
 }
