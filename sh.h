@@ -6,6 +6,8 @@
 using namespace std;
 
 typedef struct cmdBlock{
+    /* numbered pipe */
+    int8_t num;
     /* prev symbol */
     int8_t prev = 0;
     /* next symbol */
@@ -25,9 +27,11 @@ class sh{
         char* execArg[50] = {NULL};
         /* Can handle 1000 sub-commands at once */
         cmdBlock cmdBlockSet[2000];
-        int pipefds[2000][2];
+        int pipefds[2][2];
+        int numPipefds[10][2];
+        int numpCount = 0;
         /* For numbered pipe */
-        int timer = -1;
+        int timerArr[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
         /* Show prompt */
         void prompt();
         /* Divide the cmd to cmdBlock(s) */

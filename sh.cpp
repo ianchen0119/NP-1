@@ -10,10 +10,16 @@
 using namespace std;
 
 #define empty_ 0
+// |
 #define pipe_ 1
-#define num_pipe_ 2
-#define redirOut_ 3
-#define redirIn_ 4
+// |n
+#define num_pipe1_ 2
+// !n
+#define num_pipe2_ 3
+// >
+#define redirOut_ 4
+// <
+#define redirIn_ 5
 
 // ref: https://burweisnote.blogspot.com/2017/10/pipe.html
 
@@ -25,6 +31,7 @@ void sh::prompt(){
 
 void sh::cmdBlockGen(string input){
     int count = 0;
+    int n = 1;
     int prevSymbol = empty_;
     this->cmdBlockSet[this->cmdBlockCount - 1].start = count;
     while(input[count] != '\0'){
@@ -32,27 +39,24 @@ void sh::cmdBlockGen(string input){
             case '!':
             case '|':
                 this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-                if(48 <= (int)input[count + 1] && (int)input[count + 1] <= 57){
-                    /* TODO */
-                    prevSymbol = num_pipe_;
-                    int n = 1;
+                if(49 <= (int)input[count + 1] && (int)input[count + 1] <= 57){
+                    prevSymbol = (input[count] == '|')?(num_pipe1_):(num_pipe2_);
                     string countNum;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                     while(48 <= (int)input[count + n] && (int)input[count + n] <= 57){
-                        countNum[n - 1] = input[count + n];
+                        countNum.push_back(input[count + n]);
                         n++;
                     }
-                    // countNum[n] = '\0';
-                    this->timer = stoi(countNum);
+                    this->cmdBlockSet[this->cmdBlockCount - 1].num = this->numpCount;
+                    this->timerArr[this->numpCount++] = (countNum == "")?(1):stoi(countNum);
                     this->cmdBlockSet[this->cmdBlockCount].start = count + n;
-                    this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
-                    this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
-                    count ++;
+                    count += n;
                 }else{
                     prevSymbol = pipe_;
-                    this->cmdBlockSet[this->cmdBlockCount].start = count + 1;
                     this->cmdBlockSet[this->cmdBlockCount - 1].next = prevSymbol;
                     this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                     this->cmdBlockCount++;
+                    this->cmdBlockSet[this->cmdBlockCount - 1].start = count + 1;
                 }
                 break;
             case '>':
@@ -70,10 +74,13 @@ void sh::cmdBlockGen(string input){
         count++;
     }
     this->cmdBlockSet[this->cmdBlockCount - 1].prev = prevSymbol;
-    this->cmdBlockSet[this->cmdBlockCount - 1].next = empty_;
-    if(!this->cmdBlockSet[this->cmdBlockCount - 1].end){
+    if(prevSymbol == num_pipe1_ || prevSymbol == num_pipe2_){
+        this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 2 * n;
+    }else{
         this->cmdBlockSet[this->cmdBlockCount - 1].end = count;
+        this->cmdBlockSet[this->cmdBlockCount - 1].next = empty_;
     }
+    
 }
 
 void sh::parser(string input, int start, int end){
@@ -103,7 +110,6 @@ int sh::execCmd(string input){
         cout << "Block" << i << ".next: "  << cmdBlockSet[i].next << endl;
         cout << "Block" << i << ".start: "  << cmdBlockSet[i].start << endl;
         cout << "Block" << i << ".end: "  << cmdBlockSet[i].end << endl;
-        cout << "Block" << i << ".timer: "  << this->timer << endl;
 #endif
         this->parser(input, this->cmdBlockSet[i].start, this->cmdBlockSet[i].end);
 
@@ -115,6 +121,12 @@ int sh::execCmd(string input){
         this->execArg[j] = NULL;
 
         this->parse.clear();
+
+        if(this->cmdBlockSet[i].next == num_pipe1_ || this->cmdBlockSet[i].next == num_pipe2_){
+            if(pipe(this->numPipefds[this->cmdBlockSet[i].num]) < 0){
+                    cerr << "err! [2]" << endl;
+                }
+        }
 
         /* wait for child */
         int pid = fork();
@@ -131,11 +143,11 @@ int sh::execCmd(string input){
             }
 
             /* numbered pipe */
-            if(this->timer == 0){
-                // close(this->pipefds[x][1]);
-                // close(this->pipefds[x][0]);
-            }else{
-                this->timer = (this->timer == -1)?(-1):(this->timer - 1);
+            for(int k = 0; k < 10; k++){
+                if(this->timerArr[k] == 0){
+                    close(this->numPipefds[k][1]);
+                    close(this->numPipefds[k][0]);
+                }
             }
 
             /* file redict */
@@ -150,18 +162,16 @@ int sh::execCmd(string input){
 #endif
             if(this->cmdBlockSet[i].prev == pipe_){
                 if(pipe(this->pipefds[p]) < 0){
-                    cerr << "err! [2]" << endl;
+                    cerr << "err! [3]" << endl;
                 }
             }
 
-            if(this->timer == 0){
-                // if(pipe(this->pipefds[x]) < 0){
-                //     cerr << "err! [2]" << endl;
-                // }
-                this->timer--;
+            for(int k = 0; k < 10; k++){
+                this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
             }
 
         }else{
+            // child
             if(this->cmdBlockSet[i].next == pipe_ && this->cmdBlockSet[i].prev == pipe_){
                 close(this->pipefds[!p][1]);
                 dup2(this->pipefds[!p][0], STDIN_FILENO);
@@ -190,12 +200,30 @@ int sh::execCmd(string input){
                 close(this->pipefds[p][1]);
             }
 
+            /* numbered pipe */
+
+            if(this->cmdBlockSet[i].next == num_pipe1_ || this->cmdBlockSet[i].next == num_pipe2_){
+                close(this->numPipefds[this->cmdBlockSet[i].num][0]);
+                dup2(this->numPipefds[this->cmdBlockSet[i].num][1] ,STDOUT_FILENO);
+                if(this->cmdBlockSet[i].next == num_pipe2_){
+                    dup2(this->numPipefds[this->cmdBlockSet[i].num][1] ,STDERR_FILENO);
+                }
+                close(this->numPipefds[this->cmdBlockSet[i].num][1]);
+            }
+
+            for(int k = 0; k < 10; k++){
+                if(this->timerArr[k] == 0){
+                    close(this->numPipefds[k][1]);
+                    dup2(this->numPipefds[k][0], STDIN_FILENO);
+                    close(this->numPipefds[k][0]);
+                }
+            }
+
 
             /* next symbol is redict */
             if(this->cmdBlockSet[i].next == redirOut_){
                 close(STDOUT_FILENO);
                 this->parser(input, this->cmdBlockSet[i+1].start, this->cmdBlockSet[i+1].end);
-                // i++;
                 char* filePath = (char*)calloc(0, sizeof(char));
                 filePath = strdup(this->parse[0].c_str());
                 this->parse.clear();
@@ -227,7 +255,7 @@ void sh::run(){
         this->prompt();
 
         getline(cin, input, '\n');
-
+        
         this->parser(input, 0, input.length());
         
         if(this->parse[0] == "exit"){
@@ -253,5 +281,7 @@ void sh::run(){
 
         this->cmdBlockGen(input);
         this->execCmd(input);
+
+        input.clear();
     }
 }
