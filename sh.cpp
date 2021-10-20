@@ -48,16 +48,33 @@ void sh::cmdBlockGen(string input){
                         n++;
                     }
                     int countNumi = (countNum == "")?(1):stoi(countNum);
+                    int emptySpace = -1;
                     for(int k = 0; k < 10; k++){
-                        if(this->timerArr[k] + this->numpCount == countNumi){
+                        if(this->timerArr[k] == -1 && emptySpace == -1){
+                            emptySpace = k;
+                        }
+                        if(this->timerArr[k] != -1 && this->timerArr[k] == countNumi){
                             this->cmdBlockSet[this->cmdBlockCount - 1].num = k;
                             this->timerArr[k] = countNumi;
                             this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                             return;
                         }
                     }
-                    this->cmdBlockSet[this->cmdBlockCount - 1].num = this->numpCount;
-                    this->timerArr[this->numpCount++] = countNumi;
+                    if(emptySpace < 0){
+#ifdef DEBUG
+                        cerr << "have no buffer to store the info, related to numbered pipe cmd" << endl;
+                        for(;;){
+
+                        }  
+#endif
+                    }
+                    this->cmdBlockSet[this->cmdBlockCount - 1].num = emptySpace;
+                    if(pipe(this->numPipefds[this->cmdBlockSet[this->cmdBlockCount - 1].num]) < 0){
+#ifdef DEBUG
+                    cerr << "err! [2]" << endl;
+#endif
+                    }
+                    this->timerArr[emptySpace] = countNumi;
                     this->cmdBlockSet[this->cmdBlockCount - 1].end = count - 1;
                     return;
                 }else{
@@ -113,8 +130,8 @@ int sh::execCmd(string input){
     }
     for(; i < this->cmdBlockCount; i++){
 #ifdef DEBUG
-        cout << "Block" << i << ".prev: "  << cmdBlockSet[i].prev << endl;
-        cout << "Block" << i << ".next: "  << cmdBlockSet[i].next << endl;
+        cout << "Block" << i << ".prev: "  << (int)cmdBlockSet[i].prev << endl;
+        cout << "Block" << i << ".next: "  << (int)cmdBlockSet[i].next << endl;
         cout << "Block" << i << ".start: "  << cmdBlockSet[i].start << endl;
         cout << "Block" << i << ".end: "  << cmdBlockSet[i].end << endl;
 #endif
@@ -129,15 +146,6 @@ int sh::execCmd(string input){
 
         this->parse.clear();
 
-        if(this->cmdBlockSet[i].next == num_pipe1_ || this->cmdBlockSet[i].next == num_pipe2_){
-            if(pipe(this->numPipefds[this->cmdBlockSet[i].num]) < 0){
-#ifdef DEBUG
-                    cerr << "err! [2]" << endl;
-#endif
-                }
-        }
-
-        /* wait for child */
         int pid = fork();
 
         if(pid){
@@ -151,24 +159,24 @@ int sh::execCmd(string input){
                 p = !p;
             }
 
-            /* numbered pipe */
+            // /* numbered pipe */
             for(int k = 0; k < 10; k++){
                 if(this->timerArr[k] == 0){
                     close(this->numPipefds[k][1]);
                     close(this->numPipefds[k][0]);
                 }
             }
+            
+            // if(this->cmdBlockSet[i].next == pipe_ || this->cmdBlockSet[i].next == num_pipe1_ || this->cmdBlockSet[i].next == num_pipe2_){
+            //     int status;
+            //     waitpid(-1, &status, WNOHANG);
+            // }else{
+            //     wait(0);
+            // }
 
-            /* file redict */
-#ifdef DEBUG
-            /* wait for child */
-            cout << "[init] child: " << pid << endl;
-            wait(0); 
-            cout << "[finished] child: " << pid << endl;
-#endif
-#ifndef DEBUG
-            wait(0); 
-#endif
+            wait(0);
+
+
             if(this->cmdBlockSet[i].prev == pipe_){
                 if(pipe(this->pipefds[p]) < 0){
 #ifdef DEBUG
@@ -177,9 +185,6 @@ int sh::execCmd(string input){
                 }
             }
 
-            for(int k = 0; k < 10; k++){
-                this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
-            }
 
         }else{
             // child
@@ -253,6 +258,11 @@ int sh::execCmd(string input){
         }
 
     }
+
+    for(int k = 0; k < 10; k++){
+                this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
+            }
+
     return 0;
 }
 

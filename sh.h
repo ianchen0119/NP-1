@@ -25,11 +25,10 @@ class sh{
         /* Store the result of parsed cmdBlock */
         vector<string> parse;
         char* execArg[50] = {NULL};
-        /* Can handle 1000 sub-commands at once */
+        /* Can handle 2000 sub-commands at once */
         cmdBlock cmdBlockSet[2000];
         int pipefds[2][2];
         int numPipefds[10][2];
-        int numpCount = 0;
         /* For numbered pipe */
         int timerArr[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
         /* Show prompt */
