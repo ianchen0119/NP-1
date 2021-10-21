@@ -10,16 +10,16 @@
 using namespace std;
 
 #define empty_ 0
-// |
-#define pipe_ 1
-// |n
-#define num_pipe1_ 2
-// !n
-#define num_pipe2_ 3
 // >
-#define redirOut_ 4
+#define redirOut_ 1
 // <
-#define redirIn_ 5
+#define redirIn_ 2
+// |
+#define pipe_ 3
+// |n
+#define num_pipe1_ 4
+// !n
+#define num_pipe2_ 5
 
 // ref: https://burweisnote.blogspot.com/2017/10/pipe.html
 
@@ -167,15 +167,15 @@ int sh::execCmd(string input){
                 }
             }
             
-            // if(this->cmdBlockSet[i].next == pipe_ || this->cmdBlockSet[i].next == num_pipe1_ || this->cmdBlockSet[i].next == num_pipe2_){
-            //     int status;
-            //     waitpid(-1, &status, WNOHANG);
-            // }else{
-            //     wait(0);
-            // }
-
-            wait(0);
-
+            int status;
+            int next = (int)this->cmdBlockSet[i].next;
+            if(next <= 2){
+                waitpid(pid, &status, 0);
+                
+                
+            }else{
+                waitpid(pid, &status, WNOHANG);
+            }
 
             if(this->cmdBlockSet[i].prev == pipe_){
                 if(pipe(this->pipefds[p]) < 0){
