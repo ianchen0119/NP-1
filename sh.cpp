@@ -145,8 +145,15 @@ int sh::execCmd(string input){
         this->execArg[j] = NULL;
 
         this->parse.clear();
-
+redo:
         int pid = fork();
+
+        int status;
+        if(pid < 0){
+            while(waitpid(-1, &status, WNOHANG) <= 0){
+            }
+            goto redo;
+        }
 
         if(pid){
             /* pipe */
@@ -171,10 +178,6 @@ int sh::execCmd(string input){
             int next = (int)this->cmdBlockSet[i].next;
             if(next <= 2){
                 waitpid(pid, &status, 0);
-                
-                
-            }else{
-                waitpid(pid, &status, WNOHANG);
             }
 
             if(this->cmdBlockSet[i].prev == pipe_){
@@ -184,8 +187,6 @@ int sh::execCmd(string input){
 #endif
                 }
             }
-
-
         }else{
             // child
             if(this->cmdBlockSet[i].next == pipe_ && this->cmdBlockSet[i].prev == pipe_){
