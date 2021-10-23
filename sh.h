@@ -1,5 +1,6 @@
 #ifndef SH_H
 #define SH_H
+#define MAX_NUMPIPE 200
 #include <iostream>
 #include <string>
 #include <vector>
@@ -28,9 +29,9 @@ class sh{
         /* Can handle 2000 sub-commands at once */
         cmdBlock cmdBlockSet[2000];
         int pipefds[2][2];
-        int numPipefds[10][2];
+        int numPipefds[MAX_NUMPIPE][2];
         /* For numbered pipe */
-        int timerArr[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+        int timerArr[MAX_NUMPIPE] = {0};
         /* Show prompt */
         void prompt();
         /* Divide the cmd to cmdBlock(s) */

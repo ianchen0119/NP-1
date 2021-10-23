@@ -49,7 +49,7 @@ void sh::cmdBlockGen(string input){
                     }
                     int countNumi = (countNum == "")?(1):stoi(countNum);
                     int emptySpace = -1;
-                    for(int k = 0; k < 10; k++){
+                    for(int k = 0; k < MAX_NUMPIPE; k++){
                         if(this->timerArr[k] == -1 && emptySpace == -1){
                             emptySpace = k;
                         }
@@ -167,7 +167,7 @@ redo:
             }
 
             // /* numbered pipe */
-            for(int k = 0; k < 10; k++){
+            for(int k = 0; k < MAX_NUMPIPE; k++){
                 if(this->timerArr[k] == 0){
                     close(this->numPipefds[k][1]);
                     close(this->numPipefds[k][0]);
@@ -228,7 +228,7 @@ redo:
                 close(this->numPipefds[this->cmdBlockSet[i].num][1]);
             }
 
-            for(int k = 0; k < 10; k++){
+            for(int k = 0; k < MAX_NUMPIPE; k++){
                 if(this->timerArr[k] == 0){
                     close(this->numPipefds[k][1]);
                     dup2(this->numPipefds[k][0], STDIN_FILENO);
@@ -260,7 +260,7 @@ redo:
 
     }
 
-    for(int k = 0; k < 10; k++){
+    for(int k = 0; k < MAX_NUMPIPE; k++){
                 this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
             }
 
@@ -272,6 +272,10 @@ void sh::run(){
     string input;
 
     setenv("PATH", "bin:.", 1);
+
+    for(int k = 0; k < MAX_NUMPIPE; k++){
+                this->timerArr[k] = -1;
+            }
 
     while(true){
         this->prompt();
@@ -287,11 +291,17 @@ void sh::run(){
         if(this->parse[0] == "setenv"){
             setenv(this->parse[1].c_str(), this->parse[2].c_str(), 1);
             this->parse.clear();
+            for(int k = 0; k < MAX_NUMPIPE; k++){
+                this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
+            }
             continue;
         }else if(this->parse[0] == "printenv"){
             if (getenv(this->parse[1].c_str()) != NULL)
                 cout << getenv(this->parse[1].c_str()) << endl;
             this->parse.clear();
+            for(int k = 0; k < MAX_NUMPIPE; k++){
+                this->timerArr[k] = (this->timerArr[k] == -1)?(-1):(this->timerArr[k] - 1);
+            }
             continue;
         }
         
